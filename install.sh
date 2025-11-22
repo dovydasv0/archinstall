@@ -50,10 +50,10 @@ DEPS=(
 sudo pacman -S --needed --noconfirm "${DEPS[@]}"
 
 # 6. Change Shell to Zsh
-if [ "$SHELL" != "/usr/bin/zsh" ]; then
-    echo "--- Changing default shell to Zsh ---"
-    chsh -s /usr/bin/zsh
-fi
+# if [ "$SHELL" != "/usr/bin/zsh" ]; then
+#     echo "--- Changing default shell to Zsh ---"
+#     chsh -s /usr/bin/zsh
+# fi
 
 # 7. CREATE HYPRLAND CONFIG WITH VM FIX
 # We pre-generate the config file with the critical fix for VirtualBox
