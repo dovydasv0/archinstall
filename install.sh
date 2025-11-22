@@ -3,7 +3,7 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-echo "### Starting Arch Linux Hyprland Setup (with Walker) ###"
+echo "### Starting Arch Linux Hyprland Setup (VM Safe Mode) ###"
 
 # 1. Update System and Install Base Build Tools
 echo "--- Updating system and installing base-devel ---"
@@ -11,7 +11,6 @@ sudo pacman -Syu --noconfirm
 sudo pacman -S --needed --noconfirm base-devel git
 
 # 2. Install AUR Helper (Yay)
-# Required for Ghostty and Walker
 if ! command -v yay &> /dev/null; then
     echo "--- Installing yay (AUR Helper) ---"
     git clone https://aur.archlinux.org/yay-bin.git
@@ -23,45 +22,78 @@ else
     echo "--- Yay is already installed ---"
 fi
 
-# 3. Install Core Suite (Repo Packages)
+# 3. Install Core Suite
 echo "--- Installing Core Applications ---"
-# Removed wofi, kept the rest
-sudo pacman -S --needed --noconfirm hyprland zsh dolphin neovim tmux
+# We add 'mesa' here to ensure basic graphics libraries exist
+sudo pacman -S --needed --noconfirm hyprland zsh dolphin neovim tmux mesa
 
-# 4. Install AUR Packages (Ghostty & Walker)
-echo "--- Installing Ghostty and Walker from AUR ---"
-# We install walker-bin to avoid long compilation times with Go
+# 4. Install Ghostty and Walker (AUR)
+echo "--- Installing Ghostty and Walker ---"
 yay -S --needed --noconfirm ghostty walker-bin
 
-# 5. Install Essential Environment 'Glue'
-echo "--- Installing Desktop Environment Dependencies ---"
-
+# 5. Install Essential Glue (Audio, Fonts, Portals)
+echo "--- Installing Dependencies ---"
 DEPS=(
-    waybar                        # Status bar
-    dunst                         # Notifications
-    pipewire                      # Audio server
-    pipewire-pulse                # Audio compatibility
-    wireplumber                   # Audio session manager
-    xdg-desktop-portal-hyprland   # Screensharing/Portals
-    polkit-gnome                  # GUI Password prompts
-    qt5-wayland                   # Qt5 support (Dolphin)
-    qt6-wayland                   # Qt6 support (Dolphin)
-    hyprpaper                     # Wallpaper utility
-    ttf-jetbrains-mono-nerd       # Font for Ghostty/Waybar icons
-    network-manager-applet        # Wi-Fi tray icon
-    unzip                         # Archive tool
-    ripgrep                       # Search tool for Neovim
-    fd                            # Find tool for Neovim
-    # gtk4                        # Walker usually pulls this in, but good to have
+    waybar
+    dunst
+    pipewire
+    pipewire-pulse
+    wireplumber
+    xdg-desktop-portal-hyprland
+    polkit-gnome
+    qt5-wayland
+    qt6-wayland
+    hyprpaper
+    ttf-jetbrains-mono-nerd
+    network-manager-applet
 )
-
 sudo pacman -S --needed --noconfirm "${DEPS[@]}"
 
-# 6. Change Default Shell to Zsh
-echo "--- Changing default shell to Zsh ---"
+# 6. Change Shell to Zsh
 if [ "$SHELL" != "/usr/bin/zsh" ]; then
+    echo "--- Changing default shell to Zsh ---"
     chsh -s /usr/bin/zsh
 fi
 
+# 7. CREATE HYPRLAND CONFIG WITH VM FIX
+# We pre-generate the config file with the critical fix for VirtualBox
+echo "--- Generating Hyprland Config for VM ---"
+mkdir -p ~/.config/hypr
+
+# If config doesn't exist, create it with the VM fix
+if [ ! -f ~/.config/hypr/hyprland.conf ]; then
+cat <<EOT > ~/.config/hypr/hyprland.conf
+# --- VM SPECIFIC FIXES ---
+env = WLR_NO_HARDWARE_CURSORS,1
+env = WLR_RENDERER_ALLOW_SOFTWARE,1
+
+# --- STARTUP ---
+exec-once = dunst
+exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+exec-once = waybar
+exec-once = walker --gapplication-service
+
+# --- INPUT ---
+input {
+    kb_layout = us
+    follow_mouse = 1
+}
+
+# --- KEYBINDINGS ---
+\$mainMod = SUPER
+bind = \$mainMod, T, exec, ghostty
+bind = \$mainMod, Q, killactive
+bind = \$mainMod, M, exit
+bind = \$mainMod, E, exec, dolphin
+bind = \$mainMod, SPACE, exec, walker
+
+# --- DISPLAY ---
+monitor=,preferred,auto,1
+EOT
+    echo "Created ~/.config/hypr/hyprland.conf with VM fixes."
+else
+    echo "Config already exists. Please manually add 'env = WLR_RENDERER_ALLOW_SOFTWARE,1' to it."
+fi
+
 echo "### Setup Complete! ###"
-echo "Please reboot your system."
+echo "Type 'Hyprland' to start."
